@@ -1,0 +1,9 @@
+[project]
+name = "mathformer-calculator"
+version = "0.1.0"
+description = "Calculator backend using MathFormer neural network"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "mathformer",
+]

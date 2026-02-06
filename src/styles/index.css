@@ -1,0 +1,576 @@
+/* ==========================================================================
+   MathFormer Calculator - Premium Glassmorphism Design
+   ========================================================================== */
+
+/* CSS Custom Properties - Design Tokens */
+:root {
+  /* Colors - Monochromatic palette for elegance */
+  --color-bg-primary: rgba(10, 10, 20, 0.75);
+  --color-bg-glass: rgba(255, 255, 255, 0.08);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.12);
+  --color-bg-glass-active: rgba(255, 255, 255, 0.18);
+  --color-bg-button: rgba(255, 255, 255, 0.06);
+  --color-bg-button-hover: rgba(255, 255, 255, 0.1);
+  --color-bg-button-active: rgba(255, 255, 255, 0.15);
+  --color-bg-operator: rgba(100, 140, 200, 0.15);
+  --color-bg-operator-hover: rgba(100, 140, 200, 0.25);
+  --color-bg-operator-active: rgba(100, 140, 200, 0.35);
+  --color-bg-equals: rgba(80, 180, 200, 0.25);
+  --color-bg-equals-hover: rgba(80, 180, 200, 0.35);
+
+  /* Text colors */
+  --color-text-primary: rgba(255, 255, 255, 0.95);
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-muted: rgba(255, 255, 255, 0.4);
+  --color-text-accent: rgba(160, 200, 255, 0.95);
+
+  /* Border colors */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.12);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px rgba(100, 150, 200, 0.15);
+
+  /* Blur values */
+  --blur-glass: 20px;
+  --blur-heavy: 30px;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Typography */
+  --font-primary:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+}
+
+/* Reset & Base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-primary);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   Main Application Container
+   ========================================================================== */
+
+.app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("/background.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.app-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-primary);
+  backdrop-filter: blur(2px);
+}
+
+/* ==========================================================================
+   Title Bar (Window Controls)
+   ========================================================================== */
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  -webkit-app-region: drag;
+  user-select: none;
+  position: relative;
+  z-index: 100;
+}
+
+.title-bar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.title-bar-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.7;
+}
+
+.title-bar-text {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.title-bar-controls {
+  display: flex;
+  gap: var(--spacing-xs);
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0.6;
+}
+
+.title-bar-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.title-bar-btn.minimize {
+  background: rgba(255, 189, 68, 0.8);
+}
+
+.title-bar-btn.close {
+  background: rgba(255, 95, 86, 0.8);
+}
+
+/* ==========================================================================
+   Calculator Container
+   ========================================================================== */
+
+.calculator {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg);
+  padding-top: var(--spacing-sm);
+  gap: var(--spacing-lg);
+  position: relative;
+  z-index: 10;
+}
+
+/* ==========================================================================
+   Display Section
+   ========================================================================== */
+
+.display {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.display::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+}
+
+.display-expression {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-text-muted);
+  min-height: 20px;
+  margin-bottom: var(--spacing-sm);
+  word-break: break-all;
+  text-align: right;
+  width: 100%;
+}
+
+.display-value {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  word-break: break-all;
+  text-align: right;
+  width: 100%;
+  letter-spacing: -1px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.display-loading {
+  position: absolute;
+  bottom: var(--spacing-md);
+  left: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.display-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.display-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.display-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.display-status {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-accent);
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   Keypad Section
+   ========================================================================== */
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  grid-template-areas:
+    "c    ce   sign div"
+    "n7   n8   n9   mul"
+    "n4   n5   n6   sub"
+    "n1   n2   n3   add"
+    "n0   n0   dot  eq"
+    ".    .    .    eq";
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+/* Grid area assignments for buttons */
+.btn-area-c { grid-area: c; }
+.btn-area-ce { grid-area: ce; }
+.btn-area-sign { grid-area: sign; }
+.btn-area-div { grid-area: div; }
+.btn-area-n7 { grid-area: n7; }
+.btn-area-n8 { grid-area: n8; }
+.btn-area-n9 { grid-area: n9; }
+.btn-area-mul { grid-area: mul; }
+.btn-area-n4 { grid-area: n4; }
+.btn-area-n5 { grid-area: n5; }
+.btn-area-n6 { grid-area: n6; }
+.btn-area-sub { grid-area: sub; }
+.btn-area-n1 { grid-area: n1; }
+.btn-area-n2 { grid-area: n2; }
+.btn-area-n3 { grid-area: n3; }
+.btn-area-add { grid-area: add; }
+.btn-area-n0 { grid-area: n0; }
+.btn-area-dot { grid-area: dot; }
+.btn-area-eq { grid-area: eq; }
+
+/* ==========================================================================
+   Button Styles
+   ========================================================================== */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-primary);
+  font-size: 22px;
+  font-weight: 400;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* Number buttons */
+.btn-number {
+  background: var(--color-bg-button);
+  backdrop-filter: blur(var(--blur-glass));
+  color: var(--color-text-primary);
+}
+
+.btn-number:hover {
+  background: var(--color-bg-button-hover);
+  border-color: var(--color-border-light);
+}
+
+.btn-number:active {
+  background: var(--color-bg-button-active);
+}
+
+/* Operator buttons */
+.btn-operator {
+  background: var(--color-bg-operator);
+  backdrop-filter: blur(var(--blur-glass));
+  color: var(--color-text-accent);
+  font-size: 24px;
+}
+
+.btn-operator:hover {
+  background: var(--color-bg-operator-hover);
+  border-color: rgba(100, 140, 200, 0.3);
+}
+
+.btn-operator:active {
+  background: var(--color-bg-operator-active);
+}
+
+.btn-operator.active {
+  background: var(--color-bg-operator-active);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Function buttons */
+.btn-function {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.btn-function:hover {
+  background: var(--color-bg-glass-hover);
+  color: var(--color-text-primary);
+}
+
+.btn-function:active {
+  background: var(--color-bg-glass-active);
+}
+
+/* Equals button */
+.btn-equals {
+  background: var(--color-bg-equals);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  color: var(--color-text-primary);
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.btn-equals:hover {
+  background: var(--color-bg-equals-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-equals:active {
+  background: rgba(80, 180, 200, 0.45);
+}
+
+/* ==========================================================================
+   Status & Info Section
+   ========================================================================== */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--spacing-sm);
+}
+
+.status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(100, 200, 150, 0.6);
+}
+
+.status-indicator.loading {
+  background: rgba(255, 200, 100, 0.6);
+  animation: blink 1s ease-in-out infinite;
+}
+
+.status-indicator.error {
+  background: rgba(255, 100, 100, 0.6);
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.status-text {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Error Message
+   ========================================================================== */
+
+.error-message {
+  color: rgba(255, 120, 120, 0.9);
+  font-size: 12px;
+  text-align: right;
+  margin-top: var(--spacing-xs);
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-height: 600px) {
+  .display {
+    min-height: 100px;
+    padding: var(--spacing-lg);
+  }
+
+  .display-value {
+    font-size: 32px;
+  }
+
+  .btn {
+    font-size: 18px;
+  }
+}
+
+/* ==========================================================================
+   Animations & Effects
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.calculator {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Ripple effect for buttons */
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
