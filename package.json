@@ -4,9 +4,8 @@
   "description": "A premium calculator powered by MathFormer neural network",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
-    "dev:react": "vite",
-    "dev:electron": "npm run build:electron && wait-on http://localhost:5173 && electron .",
+    "dev": "npm run build && electron .",
+    "dev:electron": "npm run build:electron && electron .",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build": "npm run build:electron && vite build",
     "preview": "vite preview",
