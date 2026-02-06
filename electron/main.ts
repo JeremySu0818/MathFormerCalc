@@ -35,17 +35,29 @@ function createWindow(): void {
   });
 }
 
+let pythonPort: number | null = null;
+
 function startPythonBackend(): void {
-  const pythonScript = path.join(__dirname, "../python/calculator.py");
+  const pythonScript = path.join(__dirname, "../python/server.py");
 
   // Use 'uv run' to execute python script
-  pythonProcess = spawn("uv", ["run", "python", pythonScript], {
+  // We use "python -u" to ensure unbuffered output so we catch the PORT immediately
+  pythonProcess = spawn("uv", ["run", "python", "-u", pythonScript], {
     cwd: path.join(__dirname, "../python"),
     shell: true,
   });
 
   pythonProcess.stdout?.on("data", (data) => {
-    console.log(`Python stdout: ${data}`);
+    const output = data.toString();
+    console.log(`Python stdout: ${output}`);
+
+    if (pythonPort === null) {
+      const match = output.match(/PORT:(\d+)/);
+      if (match) {
+        pythonPort = parseInt(match[1], 10);
+        console.log(`Python server ready on port ${pythonPort}`);
+      }
+    }
   });
 
   pythonProcess.stderr?.on("data", (data) => {
@@ -54,6 +66,7 @@ function startPythonBackend(): void {
 
   pythonProcess.on("close", (code) => {
     console.log(`Python process exited with code ${code}`);
+    pythonPort = null;
   });
 }
 
@@ -61,41 +74,44 @@ function startPythonBackend(): void {
 ipcMain.handle(
   "calculate",
   async (_event, operation: string, a: string, b: string) => {
-    return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, "../python/calculator.py");
+    // Wait for backend if not ready
+    if (!pythonPort) {
+      console.log("Waiting for Python backend...");
+      const startTime = Date.now();
+      // Wait up to 15 seconds for the slow mathformer import
+      while (!pythonPort && Date.now() - startTime < 15000) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
 
-      const process = spawn(
-        "uv",
-        ["run", "python", pythonScript, operation, a, b],
-        {
-          cwd: path.join(__dirname, "../python"),
-          shell: true,
+      if (!pythonPort) {
+        throw new Error("Python backend is not ready yet (timed out).");
+      }
+    }
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${pythonPort}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
-
-      let result = "";
-      let error = "";
-
-      process.stdout?.on("data", (data) => {
-        result += data.toString();
+        body: JSON.stringify({ operation, a, b }),
       });
 
-      process.stderr?.on("data", (data) => {
-        error += data.toString();
-      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      process.on("close", (code) => {
-        if (code === 0) {
-          resolve(result.trim());
-        } else {
-          reject(new Error(error || `Process exited with code ${code}`));
-        }
-      });
+      const data = (await response.json()) as { error?: string; result?: string };
 
-      process.on("error", (err) => {
-        reject(err);
-      });
-    });
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      return data.result;
+    } catch (error: any) {
+      console.error("Calculation error:", error);
+      throw new Error(error.message || "Failed to communicate with calculation service");
+    }
   },
 );
 
@@ -109,6 +125,7 @@ ipcMain.on("window-close", () => {
 });
 
 app.whenReady().then(() => {
+  startPythonBackend();
   createWindow();
 
   app.on("activate", () => {
