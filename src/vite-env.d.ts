@@ -5,8 +5,10 @@ interface ElectronAPI {
   windowMinimize: () => void;
   windowClose: () => void;
   checkBackendStatus: () => Promise<boolean>;
+  checkBackendReady: () => Promise<boolean>;
   installBackend: () => Promise<void>;
   onBackendLog: (callback: (log: string) => void) => void;
+  onBackendReady: (callback: () => void) => void;
 }
 
 declare global {

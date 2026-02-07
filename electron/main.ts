@@ -51,8 +51,9 @@ function createWindow(): void {
 }
 
 let pythonPort: number | null = null;
+let backendReadyCallback: (() => void) | null = null;
 
-function startPythonBackend(): void {
+function startPythonBackend(onReady?: () => void): void {
   let pythonExecutable: string;
   let pythonArgs: string[];
   let env: NodeJS.ProcessEnv | undefined;
@@ -79,6 +80,10 @@ function startPythonBackend(): void {
       ...process.env,
       CUDA_VISIBLE_DEVICES: "",
     };
+  }
+
+  if (onReady) {
+    backendReadyCallback = onReady;
   }
 
   console.log(`Starting Python backend: ${pythonExecutable} ${pythonArgs.join(" ")}`);
@@ -111,6 +116,11 @@ function startPythonBackend(): void {
               pythonPort = port;
               console.log(`Backend verified and ready on port ${pythonPort}`);
               mainWindow?.webContents.send("backend-ready");
+
+              if (backendReadyCallback) {
+                backendReadyCallback();
+                backendReadyCallback = null;
+              }
             } else {
               console.log("Backend started but not ready, retrying...");
               setTimeout(verify, 500);
@@ -222,9 +232,11 @@ ipcMain.handle("install-backend", async () => {
 
       installProc.on("close", (code) => {
         if (code !== 0) return reject(new Error("Failed to install dependencies"));
-        log("安裝完成！正在啟動後端...");
-        startPythonBackend();
-        resolve();
+        log("安裝完成！正在啟動後端並載入 MathFormer 模型...");
+        startPythonBackend(() => {
+          log("後端已就緒！");
+          resolve();
+        });
       });
     });
   });

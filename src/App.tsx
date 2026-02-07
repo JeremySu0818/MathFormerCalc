@@ -36,9 +36,10 @@ function App() {
     setIsInstalling(true);
     try {
       await window.electronAPI.installBackend();
-      setIsBackendReady(true);
+      setIsInstalling(false);
     } catch (err) {
       setInstallLogs(prev => [...prev, `安裝失敗: ${err instanceof Error ? err.message : String(err)}`]);
+      setIsInstalling(false);
     }
   };
 
