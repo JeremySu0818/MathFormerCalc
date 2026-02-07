@@ -8,8 +8,10 @@ files:
   - dist/**/*
   - package.json
 extraResources:
-  - from: python/dist/server.exe
-    to: python/server.exe
+  - from: bin/uv.exe
+    to: uv.exe
+  - from: python/server.py
+    to: python/server.py
 win:
   target: portable
   icon: public/icon.png

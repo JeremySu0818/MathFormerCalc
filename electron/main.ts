@@ -11,8 +11,19 @@ const envPath = path.join(app.getPath("userData"), "python_env");
 const pythonBin = process.platform === "win32"
   ? path.join(envPath, "Scripts", "python.exe")
   : path.join(envPath, "bin", "python");
-const packagedServerName = process.platform === "win32" ? "server.exe" : "server";
-const packagedServerPath = path.join(process.resourcesPath, "python", packagedServerName);
+const packagedServerScriptPath = isDev
+  ? path.join(__dirname, "../python/server.py")
+  : path.join(process.resourcesPath, "python", "server.py");
+
+// Check if backend is properly installed
+function isBackendInstalled(): boolean {
+  if (isDev) {
+    // In dev, we use uv run directly
+    return true;
+  }
+  // In production, check if python venv exists with mathformer installed
+  return fs.existsSync(pythonBin);
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -60,16 +71,16 @@ function startPythonBackend(): void {
       CUDA_VISIBLE_DEVICES: "",
     };
   } else {
-    if (!fs.existsSync(packagedServerPath)) {
-      console.error(`Packaged backend missing at ${packagedServerPath}`);
+    // In production, MUST use the installed venv with mathformer
+    if (!fs.existsSync(pythonBin)) {
+      console.error(`Python environment not found at ${pythonBin}. Please install dependencies first.`);
       return;
     }
 
-    pythonExecutable = packagedServerPath;
-    pythonArgs = [];
+    pythonExecutable = pythonBin;
+    pythonArgs = ["-u", packagedServerScriptPath];
     env = {
       ...process.env,
-      MATHFORMER_BACKEND: "lite",
       CUDA_VISIBLE_DEVICES: "",
     };
   }
@@ -77,8 +88,8 @@ function startPythonBackend(): void {
   console.log(`Starting Python backend: ${pythonExecutable} ${pythonArgs.join(" ")}`);
 
   pythonProcess = spawn(pythonExecutable, pythonArgs, {
-    cwd: isDev ? backendDir : backendDir,
-    shell: true,
+    cwd: backendDir,
+    shell: isDev, // Use shell only for 'uv' command in dev
     env,
   });
 
@@ -140,28 +151,25 @@ ipcMain.handle(
   },
 );
 
+// Check if backend dependencies are installed
 ipcMain.handle("check-backend-status", async () => {
-  if (isDev) return true;
-  return fs.existsSync(packagedServerPath);
+  return isBackendInstalled();
 });
 
+// Install backend dependencies using uv
 ipcMain.handle("install-backend", async () => {
-  if (!isDev) {
-    if (fs.existsSync(packagedServerPath)) {
-      startPythonBackend();
-      return;
-    }
-    throw new Error("Embedded backend missing. Please reinstall the app.");
-  }
-
   const uvExecutable = isDev ? "uv" : path.join(process.resourcesPath, "uv.exe");
+
+  if (!isDev && !fs.existsSync(uvExecutable)) {
+    throw new Error(`Installer missing at ${uvExecutable}`);
+  }
 
   const log = (msg: string) => {
     console.log(msg);
     mainWindow?.webContents.send("backend-log", msg);
   };
 
-  log("Initializing Python environment...");
+  log("正在初始化 Python 環境...");
 
   if (!fs.existsSync(path.dirname(envPath))) {
     fs.mkdirSync(path.dirname(envPath), { recursive: true });
@@ -169,27 +177,33 @@ ipcMain.handle("install-backend", async () => {
 
   return new Promise<void>((resolve, reject) => {
     // 1. Create venv using uv
-    const venvProc = spawn(uvExecutable, ["venv", envPath], { shell: true });
+    log("正在建立虛擬環境...");
+    const venvProc = spawn(uvExecutable, ["venv", envPath], { shell: isDev });
+
+    venvProc.stdout?.on("data", (data) => log(data.toString()));
+    venvProc.stderr?.on("data", (data) => log(data.toString()));
 
     venvProc.on("close", (code) => {
       if (code !== 0) return reject(new Error("Failed to create venv"));
 
-      log("Environment created. Installing dependencies (this may take a while)...");
+      log("環境建立完成，正在安裝 MathFormer 依賴 (這可能需要幾分鐘)...");
 
-      // 2. Install dependencies
-      const installProc = spawn(uvExecutable, [
+      // 2. Install dependencies - mathformer and torch (CPU version)
+      const installArgs = [
         "pip", "install",
         "mathformer", "torch",
-        "--index", "pytorch-cpu",
+        "--index-url", "https://download.pytorch.org/whl/cpu",
+        "--extra-index-url", "https://pypi.org/simple",
         "--python", pythonBin
-      ], { shell: true });
+      ];
+      const installProc = spawn(uvExecutable, installArgs, { shell: isDev });
 
       installProc.stdout?.on("data", (data) => log(data.toString()));
       installProc.stderr?.on("data", (data) => log(data.toString()));
 
       installProc.on("close", (code) => {
         if (code !== 0) return reject(new Error("Failed to install dependencies"));
-        log("Backend installation complete!");
+        log("安裝完成！正在啟動後端...");
         startPythonBackend();
         resolve();
       });
@@ -210,12 +224,14 @@ app.whenReady().then(async () => {
   createWindow();
 
   if (isDev) {
+    // In dev, start backend immediately
     startPythonBackend();
   } else {
-    // In production, wait for UI to check status and trigger install if needed
-    if (fs.existsSync(pythonBin)) {
+    // In production, check if backend is installed
+    if (isBackendInstalled()) {
       startPythonBackend();
     }
+    // If not installed, the renderer will show installation UI
   }
 
   app.on("activate", () => {

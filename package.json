@@ -8,8 +8,7 @@
     "dev:electron": "npm run build:electron && electron .",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build": "npm run build:electron && vite build",
-    "dist:python": "cd python && uv run --isolated --no-project --with pyinstaller pyinstaller --noconfirm --onefile --console --clean --name server --exclude-module mathformer --exclude-module torch --exclude-module matplotlib --exclude-module notebook --exclude-module scipy --exclude-module tkinter server.py",
-    "package": "npm run build && npm run dist:python && electron-builder build --publish never",
+    "package": "npm run build && electron-builder build --publish never",
     "start": "npm run build:electron && electron ."
   },
   "keywords": [

@@ -31,31 +31,36 @@ function App() {
   const [isInstalling, setIsInstalling] = useState<boolean>(false);
   const [installLogs, setInstallLogs] = useState<string[]>([]);
 
-  // Check backend status on mount
-  useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.checkBackendStatus().then((ready) => {
-        setIsBackendReady(ready);
-      });
-
-      window.electronAPI.onBackendLog((log) => {
-        setInstallLogs(prev => [...prev.slice(-50), log]);
-      });
-    }
-  }, []);
-
-  const handleInstallBackend = async () => {
-    if (!window.electronAPI) return;
+  // Auto-install backend if not ready
+  const startInstallation = async () => {
+    if (!window.electronAPI || isInstalling) return;
     setIsInstalling(true);
     try {
       await window.electronAPI.installBackend();
       setIsBackendReady(true);
     } catch (err) {
-      alert("Installation failed: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsInstalling(false);
+      setInstallLogs(prev => [...prev, `安裝失敗: ${err instanceof Error ? err.message : String(err)}`]);
     }
+    // Note: we don't set isInstalling to false - if it fails, show error in logs
   };
+
+  // Check backend status on mount and auto-install if needed
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.checkBackendStatus().then((ready) => {
+        setIsBackendReady(ready);
+        if (!ready) {
+          // Auto-start installation when backend is not ready
+          setIsInstalling(true);
+          startInstallation();
+        }
+      });
+
+      window.electronAPI.onBackendLog((log) => {
+        setInstallLogs(prev => [...prev.slice(-100), log]);
+      });
+    }
+  }, []);
 
   const inputDigit = useCallback((digit: string) => {
     setState(prev => {
@@ -310,24 +315,14 @@ function App() {
       {!isBackendReady && (
         <div className="setup-overlay">
           <div className="setup-card">
-            <div className="setup-title">Backend Required</div>
+            <div className="setup-title">正在安裝依賴</div>
             <div className="setup-desc">
-              MathFormer requires a local Python environment with neural network libraries.
+              正在下載並安裝 MathFormer 神經網路引擎，請稍候...
             </div>
 
-            {isInstalling && (
-              <div className="setup-progress">
-                <div className="setup-progress-bar" />
-              </div>
-            )}
-
-            <button
-              className="setup-btn"
-              onClick={handleInstallBackend}
-              disabled={isInstalling}
-            >
-              {isInstalling ? "Installing..." : "Initialize Engine"}
-            </button>
+            <div className="setup-progress">
+              <div className="setup-progress-bar" />
+            </div>
 
             {installLogs.length > 0 && (
               <div className="setup-logs">
