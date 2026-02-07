@@ -27,6 +27,35 @@ const initialState: CalculatorState = {
 
 function App() {
   const [state, setState] = useState<CalculatorState>(initialState);
+  const [isBackendReady, setIsBackendReady] = useState<boolean>(true);
+  const [isInstalling, setIsInstalling] = useState<boolean>(false);
+  const [installLogs, setInstallLogs] = useState<string[]>([]);
+
+  // Check backend status on mount
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.checkBackendStatus().then((ready) => {
+        setIsBackendReady(ready);
+      });
+
+      window.electronAPI.onBackendLog((log) => {
+        setInstallLogs(prev => [...prev.slice(-50), log]);
+      });
+    }
+  }, []);
+
+  const handleInstallBackend = async () => {
+    if (!window.electronAPI) return;
+    setIsInstalling(true);
+    try {
+      await window.electronAPI.installBackend();
+      setIsBackendReady(true);
+    } catch (err) {
+      alert("Installation failed: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsInstalling(false);
+    }
+  };
 
   const inputDigit = useCallback((digit: string) => {
     setState(prev => {
@@ -40,7 +69,7 @@ function App() {
       }
 
       const newValue = prev.displayValue === '0' ? digit : prev.displayValue + digit;
-      
+
       // Limit display length
       if (newValue.length > 15) return prev;
 
@@ -97,7 +126,7 @@ function App() {
   const performOperation = useCallback(async (nextOperation: Operation) => {
     setState(prev => {
       const value = prev.displayValue;
-      
+
       if (prev.previousValue === null) {
         // First operand
         const opSymbol = getOperationSymbol(nextOperation);
@@ -109,7 +138,7 @@ function App() {
           expression: `${value} ${opSymbol}`,
         };
       }
-      
+
       return prev;
     });
 
@@ -128,9 +157,9 @@ function App() {
   }, [state.previousValue, state.operation, state.displayValue, state.waitingForOperand]);
 
   const calculate = async (
-    op: Operation, 
-    prevValue: string, 
-    currValue: string, 
+    op: Operation,
+    prevValue: string,
+    currValue: string,
     nextOp?: Operation
   ) => {
     if (!op) return;
@@ -204,8 +233,8 @@ function App() {
 
   const handleBackspace = useCallback(() => {
     setState(prev => {
-      if (prev.displayValue.length === 1 || 
-          (prev.displayValue.length === 2 && prev.displayValue.startsWith('-'))) {
+      if (prev.displayValue.length === 1 ||
+        (prev.displayValue.length === 2 && prev.displayValue.startsWith('-'))) {
         return { ...prev, displayValue: '0' };
       }
       return { ...prev, displayValue: prev.displayValue.slice(0, -1) };
@@ -246,17 +275,17 @@ function App() {
       <div className="app-background">
         <div className="app-overlay" />
       </div>
-      
+
       <TitleBar />
-      
+
       <div className="calculator">
-        <Display 
+        <Display
           value={state.displayValue}
           expression={state.expression}
           isLoading={state.isLoading}
           error={state.error}
         />
-        
+
         <Keypad
           onDigit={inputDigit}
           onDecimal={inputDecimal}
@@ -269,7 +298,7 @@ function App() {
           activeOperation={state.operation}
           isLoading={state.isLoading}
         />
-        
+
         <div className="status-bar">
           <span className={`status-indicator ${state.isLoading ? 'loading' : ''} ${state.error ? 'error' : ''}`} />
           <span className="status-text">
@@ -277,6 +306,39 @@ function App() {
           </span>
         </div>
       </div>
+
+      {!isBackendReady && (
+        <div className="setup-overlay">
+          <div className="setup-card">
+            <div className="setup-title">Backend Required</div>
+            <div className="setup-desc">
+              MathFormer requires a local Python environment with neural network libraries.
+            </div>
+
+            {isInstalling && (
+              <div className="setup-progress">
+                <div className="setup-progress-bar" />
+              </div>
+            )}
+
+            <button
+              className="setup-btn"
+              onClick={handleInstallBackend}
+              disabled={isInstalling}
+            >
+              {isInstalling ? "Installing..." : "Initialize Engine"}
+            </button>
+
+            {installLogs.length > 0 && (
+              <div className="setup-logs">
+                {installLogs.map((log, i) => (
+                  <div key={i}>{log}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -294,7 +356,7 @@ function getOperationSymbol(op: Operation): string {
 function calculateLocally(op: string, a: string, b: string): string {
   const numA = parseFloat(a);
   const numB = parseFloat(b);
-  
+
   switch (op) {
     case 'add': return String(numA + numB);
     case 'sub': return String(numA - numB);

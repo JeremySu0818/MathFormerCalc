@@ -8,6 +8,8 @@
     "dev:electron": "npm run build:electron && electron .",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build": "npm run build:electron && vite build",
+    "dist:python": "cd python && uv run --isolated --no-project --with pyinstaller pyinstaller --noconfirm --onefile --console --clean --name server --exclude-module mathformer --exclude-module torch --exclude-module matplotlib --exclude-module notebook --exclude-module scipy --exclude-module tkinter server.py",
+    "package": "npm run build && npm run dist:python && electron-builder build --publish never",
     "start": "npm run build:electron && electron ."
   },
   "keywords": [
@@ -24,9 +26,10 @@
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
-    "electron": "^28.1.4",
+    "electron": "^40.2.1",
+    "electron-builder": "^26.7.0",
     "typescript": "^5.3.3",
-    "vite": "^5.0.12",
+    "vite": "^7.3.1",
     "wait-on": "^7.2.0"
   },
   "dependencies": {

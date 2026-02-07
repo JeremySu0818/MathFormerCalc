@@ -1,11 +1,18 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { spawn, ChildProcess } from "child_process";
 import * as path from "path";
+import * as fs from "fs";
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const envPath = path.join(app.getPath("userData"), "python_env");
+const pythonBin = process.platform === "win32"
+  ? path.join(envPath, "Scripts", "python.exe")
+  : path.join(envPath, "bin", "python");
+const packagedServerName = process.platform === "win32" ? "server.exe" : "server";
+const packagedServerPath = path.join(process.resourcesPath, "python", packagedServerName);
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -38,13 +45,41 @@ function createWindow(): void {
 let pythonPort: number | null = null;
 
 function startPythonBackend(): void {
-  const pythonScript = path.join(__dirname, "../python/server.py");
+  let pythonExecutable: string;
+  let pythonArgs: string[];
+  let env: NodeJS.ProcessEnv | undefined;
+  const backendDir = isDev
+    ? path.join(__dirname, "../python")
+    : path.join(process.resourcesPath, "python");
 
-  // Use 'uv run' to execute python script
-  // We use "python -u" to ensure unbuffered output so we catch the PORT immediately
-  pythonProcess = spawn("uv", ["run", "python", "-u", pythonScript], {
-    cwd: path.join(__dirname, "../python"),
+  if (isDev) {
+    pythonExecutable = "uv";
+    pythonArgs = ["run", "python", "-u", path.join(backendDir, "server.py")];
+    env = {
+      ...process.env,
+      CUDA_VISIBLE_DEVICES: "",
+    };
+  } else {
+    if (!fs.existsSync(packagedServerPath)) {
+      console.error(`Packaged backend missing at ${packagedServerPath}`);
+      return;
+    }
+
+    pythonExecutable = packagedServerPath;
+    pythonArgs = [];
+    env = {
+      ...process.env,
+      MATHFORMER_BACKEND: "lite",
+      CUDA_VISIBLE_DEVICES: "",
+    };
+  }
+
+  console.log(`Starting Python backend: ${pythonExecutable} ${pythonArgs.join(" ")}`);
+
+  pythonProcess = spawn(pythonExecutable, pythonArgs, {
+    cwd: isDev ? backendDir : backendDir,
     shell: true,
+    env,
   });
 
   pythonProcess.stdout?.on("data", (data) => {
@@ -74,18 +109,8 @@ function startPythonBackend(): void {
 ipcMain.handle(
   "calculate",
   async (_event, operation: string, a: string, b: string) => {
-    // Wait for backend if not ready
     if (!pythonPort) {
-      console.log("Waiting for Python backend...");
-      const startTime = Date.now();
-      // Wait up to 15 seconds for the slow mathformer import
-      while (!pythonPort && Date.now() - startTime < 15000) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-
-      if (!pythonPort) {
-        throw new Error("Python backend is not ready yet (timed out).");
-      }
+      throw new Error("Backend not initialized. Please wait for setup.");
     }
 
     try {
@@ -115,6 +140,63 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle("check-backend-status", async () => {
+  if (isDev) return true;
+  return fs.existsSync(packagedServerPath);
+});
+
+ipcMain.handle("install-backend", async () => {
+  if (!isDev) {
+    if (fs.existsSync(packagedServerPath)) {
+      startPythonBackend();
+      return;
+    }
+    throw new Error("Embedded backend missing. Please reinstall the app.");
+  }
+
+  const uvExecutable = isDev ? "uv" : path.join(process.resourcesPath, "uv.exe");
+
+  const log = (msg: string) => {
+    console.log(msg);
+    mainWindow?.webContents.send("backend-log", msg);
+  };
+
+  log("Initializing Python environment...");
+
+  if (!fs.existsSync(path.dirname(envPath))) {
+    fs.mkdirSync(path.dirname(envPath), { recursive: true });
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    // 1. Create venv using uv
+    const venvProc = spawn(uvExecutable, ["venv", envPath], { shell: true });
+
+    venvProc.on("close", (code) => {
+      if (code !== 0) return reject(new Error("Failed to create venv"));
+
+      log("Environment created. Installing dependencies (this may take a while)...");
+
+      // 2. Install dependencies
+      const installProc = spawn(uvExecutable, [
+        "pip", "install",
+        "mathformer", "torch",
+        "--index", "pytorch-cpu",
+        "--python", pythonBin
+      ], { shell: true });
+
+      installProc.stdout?.on("data", (data) => log(data.toString()));
+      installProc.stderr?.on("data", (data) => log(data.toString()));
+
+      installProc.on("close", (code) => {
+        if (code !== 0) return reject(new Error("Failed to install dependencies"));
+        log("Backend installation complete!");
+        startPythonBackend();
+        resolve();
+      });
+    });
+  });
+});
+
 // Window control handlers
 ipcMain.on("window-minimize", () => {
   mainWindow?.minimize();
@@ -124,9 +206,17 @@ ipcMain.on("window-close", () => {
   mainWindow?.close();
 });
 
-app.whenReady().then(() => {
-  startPythonBackend();
+app.whenReady().then(async () => {
   createWindow();
+
+  if (isDev) {
+    startPythonBackend();
+  } else {
+    // In production, wait for UI to check status and trigger install if needed
+    if (fs.existsSync(pythonBin)) {
+      startPythonBackend();
+    }
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

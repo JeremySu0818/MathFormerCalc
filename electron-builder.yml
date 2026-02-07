@@ -1,0 +1,17 @@
+appId: com.mathformer.calc
+productName: MathFormerCalc
+asar: false
+compression: store
+directories:
+  output: dist-app
+files:
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: python/dist/server.exe
+    to: python/server.exe
+win:
+  target: portable
+  icon: public/icon.png
+portable:
+  artifactName: MathFormerCalc_Portable.exe
