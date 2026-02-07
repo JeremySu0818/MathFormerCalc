@@ -1,7 +1,7 @@
 {
   "name": "mathformer-calc",
   "version": "1.0.0",
-  "description": "A premium calculator powered by MathFormer neural network",
+  "description": "A GUI calculator utilizing mathformer's four models for basic arithmetic and digit-based algorithms for addition, subtraction, multiplication, and division",
   "main": "dist/main.js",
   "scripts": {
     "dev": "npm run build && electron .",

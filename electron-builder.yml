@@ -1,5 +1,5 @@
 appId: com.mathformer.calc
-productName: MathFormerCalc
+productName: MathFormer-Calc
 asar: false
 compression: store
 directories:
@@ -16,4 +16,4 @@ win:
   target: portable
   icon: public/icon.png
 portable:
-  artifactName: MathFormerCalc_Portable.exe
+  artifactName: MathFormer-Calc.exe
