@@ -61,6 +61,10 @@ function App() {
         setIsInstalling(false);
       });
 
+      window.electronAPI.onInstallComplete(() => {
+        setIsInstalling(false);
+      });
+
       window.electronAPI.onBackendLog((log) => {
         setInstallLogs(prev => [...prev.slice(-100), log]);
       });

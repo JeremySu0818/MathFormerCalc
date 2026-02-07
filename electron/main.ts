@@ -233,6 +233,7 @@ ipcMain.handle("install-backend", async () => {
       installProc.on("close", (code) => {
         if (code !== 0) return reject(new Error("Failed to install dependencies"));
         log("安裝完成！正在啟動後端並載入 MathFormer 模型...");
+        mainWindow?.webContents.send("install-complete");
         startPythonBackend(() => {
           log("後端已就緒！");
           resolve();

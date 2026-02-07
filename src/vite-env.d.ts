@@ -9,6 +9,7 @@ interface ElectronAPI {
   installBackend: () => Promise<void>;
   onBackendLog: (callback: (log: string) => void) => void;
   onBackendReady: (callback: () => void) => void;
+  onInstallComplete: (callback: () => void) => void;
 }
 
 declare global {

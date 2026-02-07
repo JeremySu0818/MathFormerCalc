@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onBackendReady: (callback: () => void): void => {
     ipcRenderer.on("backend-ready", () => callback());
   },
+  onInstallComplete: (callback: () => void): void => {
+    ipcRenderer.on("install-complete", () => callback());
+  },
 });
 
 export interface ElectronAPI {
@@ -27,6 +30,7 @@ export interface ElectronAPI {
   installBackend: () => Promise<void>;
   onBackendLog: (callback: (log: string) => void) => void;
   onBackendReady: (callback: () => void) => void;
+  onInstallComplete: (callback: () => void) => void;
 }
 
 declare global {
