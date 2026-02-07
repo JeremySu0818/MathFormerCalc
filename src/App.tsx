@@ -33,6 +33,7 @@ function App() {
 
   const startInstallation = async () => {
     if (!window.electronAPI || isInstalling) return;
+    setInstallLogs([]);
     setIsInstalling(true);
     try {
       await window.electronAPI.installBackend();
@@ -328,7 +329,7 @@ function App() {
               <div className="setup-progress-bar" />
             </div>
 
-            {installLogs.length > 0 && (
+            {isInstalling && installLogs.length > 0 && (
               <div className="setup-logs">
                 {installLogs.map((log, i) => (
                   <div key={i}>{log}</div>
